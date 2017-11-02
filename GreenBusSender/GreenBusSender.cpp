@@ -218,7 +218,7 @@ void readerLock(){
 }*/
 
 int sendbuff(char *buff){
-	printf("%s\n", buff);
+	//printf("%s\n", buff);
 	error = LoRaWAN.sendRadio(buff);
 	if (error == 0){
     	printf("--> Packet sent OK\n");
@@ -243,26 +243,49 @@ void changeDoubletoIEEE(double *dp, unsigned char *&ret) {
     }
 }
 
+void restartGPS(){
+	system("fuser -k /dev/ttyUSB0");
+	system("tput reset > /dev/ttyUSB0");
+	system("./AdafruitGPS_main &");
+}
+
 void readAndSend(){
 	unsigned char *buff;
 	char GPSFileline[128], PhoneLine[128];
-	int PhoneFileCount;
+	int PhoneFileCount, GPSFileCount, prevGPSCount = 0, sameGPSCount = 0;
 	buff = (unsigned char*)malloc(sizeof(char) * 140);
 	FILE *file;
 	while(1){
 		double GPSlatitudeDegrees, GPSlongitudeDegrees, GPSspeed, GPSangle, Phonelatitude, Phonelongitude, Phonespeed, Phoneangle;
 		file = fopen("AdafruitGPSdata.txt", "r");
 		if (file == NULL) {
-			printf("file open failed!\n");
-			return;
+			printf("AdafruitGPSdata.txt open failed!\n");
+			delay(321);
+			continue;
 		}
 		memset(GPSFileline, 0, sizeof(GPSFileline));
 		fgets(GPSFileline, sizeof(GPSFileline), file);
 		fclose(file);
-		sscanf(GPSFileline,"%lf %lf %lf %lf", &GPSlatitudeDegrees, &GPSlongitudeDegrees, &GPSspeed, &GPSangle);
-		printf("GPS data: %lf %lf %lf %lf\n", GPSlatitudeDegrees, GPSlongitudeDegrees, GPSspeed, GPSangle);
+		sscanf(GPSFileline,"%d %lf %lf %lf %lf", &GPSFileCount, &GPSlatitudeDegrees, &GPSlongitudeDegrees, &GPSspeed, &GPSangle);
+		if (GPSFileCount == prevGPSCount){
+			sameGPSCount++;
+			if (sameGPSCount == 5){
+				printf("GPS seems dead, restarting it\n");
+				restartGPS();
+				sameGPSCount = 0;
+			}
+		} else {
+			sameGPSCount = 0;
+		}
+		prevGPSCount = GPSFileCount;
+		printf("GPS data: %d %lf %lf %lf %lf\n", GPSFileCount, GPSlatitudeDegrees, GPSlongitudeDegrees, GPSspeed, GPSangle);
 		//moveToLocal();
 		file = fopen("phoneData.txt", "r");
+		if (file == NULL){
+			printf("phoneData.txt open failed\n");
+			delay(321);
+			continue;
+		}
 		memset(PhoneLine, 0, sizeof(PhoneLine));
 		fgets(PhoneLine, sizeof(PhoneLine), file);
 		fclose(file);
