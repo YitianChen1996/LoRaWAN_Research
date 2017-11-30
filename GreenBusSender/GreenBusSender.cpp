@@ -9,13 +9,14 @@ const char dataFileLoc_fopen[150] = "/run/user/1000/gvfs/mtp:host=%5Busb%3A001%2
 
 uint8_t error;
 uint8_t power = 15;
-uint32_t frequency = 923300000;
+uint32_t frequency = 923700000;
 char spreading_factor[] = "sf12";
 char coding_rate[] = "4/5";
 uint16_t bandwidth = 125;
 char crc_mode[] = "on";
 FILE *lockFile, *dataFile;
 uint8_t sock = SOCKET0;
+unsigned char pkt_num = 0;
 
 void moveToLocal(){
 	printf("run mv\n");
@@ -243,6 +244,12 @@ void changeDoubletoIEEE(double *dp, unsigned char *&ret) {
     }
 }
 
+void addInttoBuf(int a, unsigned char *&ret) {
+	unsigned char temp[8];
+	sprintf((char *) temp, "%03d", a);
+	strcat((char *) ret, (char *) temp);
+}
+
 void restartGPS(){
 	system("fuser -k /dev/ttyUSB0");
 	system("tput reset > /dev/ttyUSB0");
@@ -292,6 +299,11 @@ void readAndSend(){
 		sscanf(PhoneLine, "%d %lf %lf %lf %lf\n",&PhoneFileCount, &Phonelongitude, &Phonelatitude, &Phonespeed, &Phoneangle);
 		printf("phone Data: %d %lf %lf %lf %lf\n",PhoneFileCount, Phonelatitude, Phonelongitude, Phonespeed, Phoneangle);
 		memset(buff,0,sizeof(unsigned char) * 140);
+		if (pkt_num >= 999){
+			pkt_num = 0;
+		}
+		pkt_num++;
+		addInttoBuf(pkt_num, buff);
 		changeDoubletoIEEE(&GPSlatitudeDegrees, buff);
 		changeDoubletoIEEE(&GPSlongitudeDegrees, buff);
 		changeDoubletoIEEE(&GPSspeed, buff);
